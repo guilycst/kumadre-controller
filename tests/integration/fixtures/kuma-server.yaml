@@ -1,0 +1,13 @@
+apiVersion: kumadre.controller/v1alpha1
+kind: KumaServer
+metadata:
+  name: test-kuma-server
+spec:
+  url: "http://uptime-kuma:3001"
+  auth:
+    usernamePassword:
+      username: admin
+      passwordSecretRef:
+        name: kuma-credentials
+        key: password
+  default: true

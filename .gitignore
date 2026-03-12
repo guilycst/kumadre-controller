@@ -1,0 +1,62 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+/bin/
+/test-bin/
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+*.html
+coverage.txt
+
+# Kubernetes
+kubeconfig
+kubeconfig-*
+
+# Go workspace file
+go.work
+
+# Go vendor directory
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+dist/
+build/
+bin/
+
+# Controller artifacts
+/config/rbac/auth_proxy_client_clusterrole.yaml
+/config/rbac/auth_proxy_role.yaml
+/config/rbac/auth_proxy_role_binding.yaml
+/config/rbac/kustomization.yaml
+/config/rbac/leader_election_role.yaml
+/config/rbac/leader_election_role_binding.yaml
+/config/rbac/role_binding.yaml
+/config/rbac/service_account.yaml
+/config/crd/
+/config/manager/
+/config/samples/
+
+# Helm charts
+*.tgz
+
+#.env
+.env.local
+.env.*.local

@@ -1,0 +1,13 @@
+apiVersion: kumadre.controller/v1alpha1
+kind: KumaMonitor
+metadata:
+  name: test-kuma-monitor
+spec:
+  discoveryMode: eager
+  watchResources:
+    - Ingress
+  monitorConfig:
+    type: http
+    interval: 60
+    timeout: 30
+    maxRetries: 3

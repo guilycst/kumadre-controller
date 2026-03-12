@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kuma-credentials
+  namespace: default
+type: Opaque
+stringData:
+  password: admin
+---
+apiVersion: kumadre.controller/v1alpha1
+kind: KumaMonitor
+metadata:
+  name: kuma-monitor
+spec:
+  uptimeKuma:
+    url: "http://uptime-kuma.uptime-kuma.svc.cluster.local:3001"
+    auth:
+      usernamePassword:
+        username: admin
+        passwordSecretRef:
+          name: kuma-credentials
+          key: password
+  discoveryMode: eager
+  watchResources:
+    - Ingress
+  monitorConfig:
+    type: http
+    interval: 60

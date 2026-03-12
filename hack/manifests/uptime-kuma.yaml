@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: uptime-kuma
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: uptime-kuma-admin
+  namespace: uptime-kuma
+type: Opaque
+stringData:
+  password: admin
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: uptime-kuma
+  namespace: uptime-kuma
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: uptime-kuma
+  template:
+    metadata:
+      labels:
+        app: uptime-kuma
+    spec:
+      containers:
+      - name: uptime-kuma
+        image: mock-uptime-kuma:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 3001
+          name: http
+        env:
+        - name: UPTIME_KUMA_PORT
+          value: "3001"
+        - name: UPTIME_KUMA_ADMIN_USER
+          value: "admin"
+        - name: UPTIME_KUMA_ADMIN_PASSWORD
+          value: "admin"
+        - name: UPTIME_KUMA_HTTPS_CERT_FILE
+          value: ""
+        - name: UPTIME_KUMA_HTTPS_KEY_FILE
+          value: ""
+        - name: UPTIME_KUMA_AUTH_METHOD
+          value: "simple"
+        - name: UPTIME_KUMA_DISABLE_AUTH
+          value: "false"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3001
+          initialDelaySeconds: 60
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3001
+          initialDelaySeconds: 30
+          periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: uptime-kuma
+  namespace: uptime-kuma
+spec:
+  type: NodePort
+  selector:
+    app: uptime-kuma
+  ports:
+  - port: 3001
+    targetPort: 3001
+    nodePort: 30001
+    name: http
