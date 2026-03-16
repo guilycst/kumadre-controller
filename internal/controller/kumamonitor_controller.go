@@ -17,6 +17,8 @@ import (
 	"github.com/guilycst/kumadre-controller/pkg/discovery"
 )
 
+const finalizerName = "kumadre.controller/finalizer"
+
 type KumaMonitorReconciler struct {
 	client.Client
 	Scheme   *runtime.Scheme
@@ -36,6 +38,30 @@ func (r *KumaMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	if err := r.Get(ctx, req.NamespacedName, &monitor); err != nil {
 		klog.Errorf("Failed to get KumaMonitor: %v", err)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	// Handle deletion
+	if monitor.DeletionTimestamp != nil {
+		if containsFinalizer(&monitor, finalizerName) {
+			if err := r.cleanupMonitors(ctx, &monitor); err != nil {
+				klog.Errorf("Failed to cleanup monitors: %v", err)
+				return ctrl.Result{RequeueAfter: 30 * time.Second}, err
+			}
+			removeFinalizer(&monitor, finalizerName)
+			if err := r.Update(ctx, &monitor); err != nil {
+				return ctrl.Result{}, err
+			}
+			klog.Infof("Cleaned up monitors for KumaMonitor %s", req.NamespacedName)
+		}
+		return ctrl.Result{}, nil
+	}
+
+	// Add finalizer if not present
+	if !containsFinalizer(&monitor, finalizerName) {
+		addFinalizer(&monitor, finalizerName)
+		if err := r.Update(ctx, &monitor); err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 
 	// Get the KumaServer to use
@@ -197,4 +223,59 @@ func (r *KumaMonitorReconciler) createUptimeKumaClient(ctx context.Context, serv
 	}
 
 	return uKumaClient, nil
+}
+
+func containsFinalizer(m *kumadrev1alpha1.KumaMonitor, finalizer string) bool {
+	for _, f := range m.Finalizers {
+		if f == finalizer {
+			return true
+		}
+	}
+	return false
+}
+
+func addFinalizer(m *kumadrev1alpha1.KumaMonitor, finalizer string) {
+	m.Finalizers = append(m.Finalizers, finalizer)
+}
+
+func removeFinalizer(m *kumadrev1alpha1.KumaMonitor, finalizer string) {
+	var newFinalizers []string
+	for _, f := range m.Finalizers {
+		if f != finalizer {
+			newFinalizers = append(newFinalizers, f)
+		}
+	}
+	m.Finalizers = newFinalizers
+}
+
+func (r *KumaMonitorReconciler) cleanupMonitors(ctx context.Context, monitor *kumadrev1alpha1.KumaMonitor) error {
+	klog.Infof("Cleaning up monitors for KumaMonitor %s", monitor.Name)
+
+	kumaServer, err := r.getKumaServer(ctx, monitor.Spec.ServerRef)
+	if err != nil {
+		return fmt.Errorf("failed to get KumaServer: %w", err)
+	}
+
+	uKumaClient, err := r.createUptimeKumaClient(ctx, kumaServer)
+	if err != nil {
+		return fmt.Errorf("failed to create UptimeKuma client: %w", err)
+	}
+	defer uKumaClient.Disconnect()
+
+	monitors, err := uKumaClient.GetMonitors(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get monitors: %w", err)
+	}
+
+	for _, m := range monitors {
+		if m.Name == monitor.Name {
+			if err := uKumaClient.DeleteMonitor(ctx, m.ID); err != nil {
+				klog.Warningf("Failed to delete monitor %d: %v", m.ID, err)
+				continue
+			}
+			klog.Infof("Deleted monitor %d (%s)", m.ID, m.Name)
+		}
+	}
+
+	return nil
 }
